@@ -116,22 +116,6 @@ public:
 		_do_evt_display = doEvtDisplay;
 	}
 
-	bool is_reverse_mag_field() const {
-		return _reverse_mag_field;
-	}
-
-	void set_reverse_mag_field(bool reverseMagField) {
-		_reverse_mag_field = reverseMagField;
-	}
-
-	float get_mag_field_re_scaling_factor() const {
-		return _mag_field_re_scaling_factor;
-	}
-
-	void set_mag_field_re_scaling_factor(float magFieldReScalingFactor) {
-		_mag_field_re_scaling_factor = magFieldReScalingFactor;
-	}
-
 	const std::string& get_vertexing_method() const {
 		return _vertexing_method;
 	}
@@ -159,18 +143,6 @@ public:
 		_output_mode = outputMode;
 	}
 
-	const std::string& get_mag_field_file_name() const {
-		return _mag_field_file_name;
-	}
-
-	/*!
-	 * default is /phenix/upgrades/decadal/fieldmaps/sPHENIX.2d.root
-	 */
-
-	void set_mag_field_file_name(const std::string& magFieldFileName) {
-		_mag_field_file_name = magFieldFileName;
-	}
-
 	const std::string& get_track_fitting_alg_name() const {
 		return _track_fitting_alg_name;
 	}
@@ -187,12 +159,12 @@ public:
 		_primary_pid_guess = primaryPidGuess;
 	}
 
-	double get_cut_min_p_T() const {
-		return _cut_min_pT;
+	double get_fit_min_pT() const {
+		return _fit_min_pT;
 	}
 
-	void set_cut_min_p_T(double cutMinPT) {
-		_cut_min_pT = cutMinPT;
+	void set_fit_min_pT(double cutMinPT) {
+		_fit_min_pT = cutMinPT;
 	}
 
 	bool is_over_write_svtxtrackmap() const {
@@ -217,6 +189,14 @@ public:
 
 	void set_use_truth_vertex(bool useTruthVertex) {
 		_use_truth_vertex = useTruthVertex;
+	}
+
+	double get_vertex_min_ndf() const {
+		return _vertex_min_ndf;
+	}
+
+	void set_vertex_min_ndf(double vertexMinPT) {
+		_vertex_min_ndf = vertexMinPT;
 	}
 
 private:
@@ -288,15 +268,6 @@ private:
 	bool _fit_primary_tracks;
 
 	//!
-	std::string _mag_field_file_name;
-
-	//! rescale mag field, modify the original mag field read in
-	float _mag_field_re_scaling_factor;
-
-	//! Switch to reverse Magnetic field
-	bool _reverse_mag_field;
-
-	//!
 	bool _use_truth_vertex;
 
 
@@ -306,7 +277,8 @@ private:
 	std::string _track_fitting_alg_name;
 
 	int _primary_pid_guess;
-	double _cut_min_pT;
+	double _fit_min_pT;
+	double _vertex_min_ndf;
 
 	genfit::GFRaveVertexFactory* _vertex_finder;
 

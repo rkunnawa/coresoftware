@@ -46,6 +46,7 @@
 #include <phool/PHNodeIterator.h>
 
 #include <phgeom/PHGeomUtility.h>
+#include <phfield/PHFieldUtility.h>
 
 #include <GenFit/FieldManager.h>
 #include <GenFit/GFRaveVertex.h>
@@ -55,6 +56,15 @@
 #include <GenFit/StateOnPlane.h>
 #include <GenFit/Track.h>
 #include <GenFit/KalmanFitterInfo.h>
+
+//Rave
+#include <rave/Version.h>
+#include <rave/Track.h>
+#include <rave/VertexFactory.h>
+#include <rave/ConstantMagneticField.h>
+
+//GenFit
+#include <GenFit/GFRaveConverters.h>
 
 #include <TClonesArray.h>
 #include <TMatrixDSym.h>
@@ -84,14 +94,6 @@
 
 using namespace std;
 
-//Rave
-#include <rave/Version.h>
-#include <rave/Track.h>
-#include <rave/VertexFactory.h>
-#include <rave/ConstantMagneticField.h>
-
-//GenFit
-#include <GenFit/GFRaveConverters.h>
 
 class PHRaveVertexFactory {
 
@@ -172,14 +174,12 @@ PHG4TrackKalmanFitter::PHG4TrackKalmanFitter(const string &name) :
 		_over_write_svtxtrackmap(true),
 		_over_write_svtxvertexmap(true),
 		_fit_primary_tracks(false),
-		_mag_field_file_name("/phenix/upgrades/decadal/fieldmaps/sPHENIX.2d.root"),
-		_mag_field_re_scaling_factor(1.4 / 1.5),
-		_reverse_mag_field(true),
-		_use_truth_vertex(true),
+		_use_truth_vertex(false),
 		_fitter( NULL),
 		_track_fitting_alg_name("DafRef"),
 		_primary_pid_guess(211),
-		_cut_min_pT(0.1),
+		_fit_min_pT(0.1),
+		_vertex_min_ndf(20),
 		_vertex_finder(NULL),
 		_vertexing_method("avf-smoothing:1"),
 		_truth_container(NULL),
@@ -233,13 +233,11 @@ int PHG4TrackKalmanFitter::InitRun(PHCompositeNode *topNode) {
 	CreateNodes(topNode);
 
 	TGeoManager* tgeo_manager = PHGeomUtility::GetTGeoManager(topNode);
+	PHField * field = PHFieldUtility::GetFieldMapNode(nullptr, topNode);
 
 	//_fitter = new PHGenFit::Fitter("sPHENIX_Geo.root","sPHENIX.2d.root", 1.4 / 1.5);
 	_fitter = PHGenFit::Fitter::getInstance(tgeo_manager,
-			_mag_field_file_name.data(),
-			(_reverse_mag_field) ?
-					-1. * _mag_field_re_scaling_factor :
-					_mag_field_re_scaling_factor, _track_fitting_alg_name,
+	    field, _track_fitting_alg_name,
 			"RKTrackRep", _do_evt_display);
 	_fitter->set_verbosity(verbosity);
 
@@ -304,7 +302,7 @@ int PHG4TrackKalmanFitter::process_event(PHCompositeNode *topNode) {
 		SvtxTrack* svtx_track = iter->second;
 		if (!svtx_track)
 			continue;
-		if (!(svtx_track->get_pt() > _cut_min_pT))
+		if (!(svtx_track->get_pt() > _fit_min_pT))
 			continue;
 
 		//! stands for Refit_PHGenFit_Track
@@ -314,7 +312,8 @@ int PHG4TrackKalmanFitter::process_event(PHCompositeNode *topNode) {
 			svtxtrack_genfittrack_map[svtx_track->get_id()] =
 					rf_phgf_tracks.size();
 			rf_phgf_tracks.push_back(rf_phgf_track);
-			rf_gf_tracks.push_back(rf_phgf_track->getGenFitTrack());
+			if(rf_phgf_track->get_ndf() > _vertex_min_ndf)
+				rf_gf_tracks.push_back(rf_phgf_track->getGenFitTrack());
 		}
 	}
 
@@ -470,7 +469,7 @@ int PHG4TrackKalmanFitter::process_event(PHCompositeNode *topNode) {
 				SvtxTrack* svtx_track = iter->second;
 				if (!svtx_track)
 					continue;
-				if (!(svtx_track->get_pt() > _cut_min_pT))
+				if (!(svtx_track->get_pt() > _fit_min_pT))
 					continue;
 				/*!
 				 * rf_phgf_track stands for Refit_PHGenFit_Track
@@ -830,9 +829,8 @@ std::shared_ptr<PHGenFit::Track> PHG4TrackKalmanFitter::ReFitTrack(PHCompositeNo
 		return NULL;
 	}
 
-	SvtxHitMap* hitsmap = NULL;
 	// get node containing the digitized hits
-	hitsmap = findNode::getClass<SvtxHitMap>(topNode, "SvtxHitMap");
+	SvtxHitMap* hitsmap =  findNode::getClass<SvtxHitMap>(topNode, "SvtxHitMap");
 	if (!hitsmap) {
 		cout << PHWHERE << "ERROR: Can't find node SvtxHitMap" << endl;
 		return NULL;
@@ -1376,9 +1374,7 @@ std::shared_ptr<SvtxTrack> PHG4TrackKalmanFitter::MakeSvtxTrack(const SvtxTrack*
 
 	out_track->set_chisq(chi2);
 	out_track->set_ndf(ndf);
-	out_track->set_charge(
-			(_reverse_mag_field) ?
-					-1. * phgf_track->get_charge() : phgf_track->get_charge());
+	out_track->set_charge(phgf_track->get_charge());
 
 	out_track->set_px(mom.Px());
 	out_track->set_py(mom.Py());

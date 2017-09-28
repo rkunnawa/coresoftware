@@ -540,7 +540,7 @@ HepMC::GenParticle* JetRecoEval::get_mother_parton(Jet* recojet,
     int particleID = abs((*p)->pdg_id());
 
     //! check to see if its quark or gluon
-    if((particleID < 6 || particleID == 21) && (particleID != 0)){
+    if((particleID <= 6 || particleID == 21) && (particleID != 0)){
     
       float dR = sqrt(((*p)->momentum().pseudoRapidity()-jet_eta) * ((*p)->momentum().pseudoRapidity() - jet_eta) +
 		      ((*p)->momentum().phi()-jet_phi) * ((*p)->momentum().phi()-jet_phi));

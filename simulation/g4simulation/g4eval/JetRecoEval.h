@@ -12,6 +12,12 @@ class JetMap;
 
 class PHCompositeNode;
 
+namespace HepMC
+{
+  class GenEvent;
+  class GenParticle;
+}
+
 class PHG4Hit;
 class PHG4Particle;
 class PHG4Shower;
@@ -109,6 +115,11 @@ public:
   /// what was the energy contribution to this reconstructed jet from this truth jet?
   float get_energy_contribution (Jet* recojet, Jet* truthjet);
 
+  HepMC::GenParticle* get_mother_parton(Jet* recojet,
+					HepMC::GenEvent * theEvent,
+					double match_radius);
+  
+  
   /// what was the energy contribution to this reconstructed jet from a particular source
   float get_energy_contribution (Jet* recojet, Jet::SRC src);
 

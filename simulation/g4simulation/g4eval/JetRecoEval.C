@@ -23,6 +23,9 @@
 #include <g4cemc/RawClusterContainer.h>
 #include <g4cemc/RawCluster.h>
 
+#include <phhepmc/PHHepMCGenEvent.h>
+#include <HepMC/GenEvent.h>
+
 #include <string>
 //#include <cstdlib>
 #include <set>
@@ -519,6 +522,40 @@ std::set<Jet*> JetRecoEval::all_truth_jets(Jet* recojet) {
   return truth_jets;
 }
 
+HepMC::GenParticle* JetRecoEval::get_mother_parton(Jet* recojet,
+						   HepMC::GenEvent * theEvent,
+						   double match_radius=0.4){
+  
+  if (_strict) {assert(recojet);}
+  else if (!recojet) {++_errors; return nullptr;}
+
+  float jet_phi = recojet->get_phi();
+  float jet_eta = recojet->get_eta();
+
+  HepMC::GenParticle* parton = nullptr;
+  
+  //TODO: lack taggign scheme of gluon splitting -> QQ_bar
+  for (HepMC::GenEvent::particle_const_iterator p = theEvent->particles_begin(); p != theEvent->particles_end(); ++p) {
+
+    int particleID = abs((*p)->pdg_id());
+
+    //! check to see if its quark or gluon
+    if((particleID < 6 || particleID == 21) && (particleID != 0)){
+    
+      float dR = sqrt(((*p)->momentum().pseudoRapidity()-jet_eta) * ((*p)->momentum().pseudoRapidity() - jet_eta) +
+		      ((*p)->momentum().phi()-jet_phi) * ((*p)->momentum().phi()-jet_phi));
+      if (dR < match_radius)
+	parton = (*p);      
+      else
+	parton = nullptr;
+    }    
+    
+  }
+
+  return parton;
+
+}
+
 Jet* JetRecoEval::max_truth_jet_by_energy(Jet* recojet) {
 
   if (_strict) {assert(recojet);}
@@ -857,7 +894,7 @@ float JetRecoEval::get_energy_contribution(Jet* recojet, Jet::SRC src) {
 
   if (_do_cache) {
     std::map<std::pair<Jet*,Jet::SRC>,float>::iterator iter =
-        _cache_get_energy_contribution_src.find(make_pair(recojet,src));
+      _cache_get_energy_contribution_src.find(make_pair(recojet,src));
     if (iter != _cache_get_energy_contribution_src.end()) {
       return iter->second;
     }
@@ -865,104 +902,104 @@ float JetRecoEval::get_energy_contribution(Jet* recojet, Jet::SRC src) {
 
   float energy = 0.0;
 
-    // loop over all recojet constituents
-    for (Jet::ConstIter jter = recojet->lower_bound_comp(src);
-   jter != recojet->upper_bound_comp(src);
-   ++jter) {
-      Jet::SRC source = jter->first;
-      assert(source == src); // jet container consistency check
-      unsigned int index = jter->second;
+  // loop over all recojet constituents
+  for (Jet::ConstIter jter = recojet->lower_bound_comp(src);
+       jter != recojet->upper_bound_comp(src);
+       ++jter) {
+    Jet::SRC source = jter->first;
+    assert(source == src); // jet container consistency check
+    unsigned int index = jter->second;
 
 
-      if (source == Jet::TRACK) {
+    if (source == Jet::TRACK) {
 
-  SvtxTrack* track = _trackmap->get(index);
-  energy += track->get_p();
+      SvtxTrack* track = _trackmap->get(index);
+      energy += track->get_p();
 
-      } else if (source == Jet::CEMC_TOWER) {
+    } else if (source == Jet::CEMC_TOWER) {
 
-  RawTower* tower = _cemctowers->getTower(index);
+      RawTower* tower = _cemctowers->getTower(index);
 
-  if (_strict) {assert(tower);}
-  else if (!tower) {++_errors; continue;}
+      if (_strict) {assert(tower);}
+      else if (!tower) {++_errors; continue;}
 
-  energy += tower->get_energy();
+      energy += tower->get_energy();
 
-      } else if (source == Jet::CEMC_CLUSTER) {
+    } else if (source == Jet::CEMC_CLUSTER) {
 
-  RawCluster* cluster = _cemcclusters->getCluster(index);
+      RawCluster* cluster = _cemcclusters->getCluster(index);
 
-  if (_strict) {assert(cluster);}
-  else if (!cluster) {++_errors; continue;}
+      if (_strict) {assert(cluster);}
+      else if (!cluster) {++_errors; continue;}
 
-  energy += cluster -> get_energy();
+      energy += cluster -> get_energy();
 
-      } else if (source == Jet::HCALIN_TOWER) {
+    } else if (source == Jet::HCALIN_TOWER) {
 
-  RawTower* tower = _hcalintowers->getTower(index);
+      RawTower* tower = _hcalintowers->getTower(index);
 
-  if (_strict) {assert(tower);}
-  else if (!tower) {++_errors; continue;}
+      if (_strict) {assert(tower);}
+      else if (!tower) {++_errors; continue;}
 
-  energy += tower->get_energy();
+      energy += tower->get_energy();
 
-      } else if (source == Jet::HCALIN_CLUSTER) {
+    } else if (source == Jet::HCALIN_CLUSTER) {
 
-  RawCluster* cluster = _hcalinclusters->getCluster(index);
+      RawCluster* cluster = _hcalinclusters->getCluster(index);
 
-  if (_strict) {assert(cluster);}
-  else if (!cluster) {++_errors; continue;}
+      if (_strict) {assert(cluster);}
+      else if (!cluster) {++_errors; continue;}
 
-  energy += cluster -> get_energy();
+      energy += cluster -> get_energy();
 
-      } else if (source == Jet::HCALOUT_TOWER) {
-  RawTower* tower = _hcalouttowers->getTower(index);
+    } else if (source == Jet::HCALOUT_TOWER) {
+      RawTower* tower = _hcalouttowers->getTower(index);
 
-  if (_strict) {assert(tower);}
-  else if (!tower) {++_errors; continue;}
+      if (_strict) {assert(tower);}
+      else if (!tower) {++_errors; continue;}
 
-  energy += tower->get_energy();
-      } else if (source == Jet::HCALOUT_CLUSTER) {
+      energy += tower->get_energy();
+    } else if (source == Jet::HCALOUT_CLUSTER) {
 
-  RawCluster* cluster = _hcaloutclusters->getCluster(index);
+      RawCluster* cluster = _hcaloutclusters->getCluster(index);
 
-  if (_strict) {assert(cluster);}
-  else if (!cluster) {++_errors; continue;}
+      if (_strict) {assert(cluster);}
+      else if (!cluster) {++_errors; continue;}
 
-  energy += cluster -> get_energy();
-      } else if (source == Jet::FEMC_TOWER) {
-  RawTower* tower = _femctowers->getTower(index);
+      energy += cluster -> get_energy();
+    } else if (source == Jet::FEMC_TOWER) {
+      RawTower* tower = _femctowers->getTower(index);
 
-  if (_strict) {assert(tower);}
-  else if (!tower) {++_errors; continue;}
+      if (_strict) {assert(tower);}
+      else if (!tower) {++_errors; continue;}
 
-  energy += tower->get_energy();
-      } else if (source == Jet::FEMC_CLUSTER) {
+      energy += tower->get_energy();
+    } else if (source == Jet::FEMC_CLUSTER) {
 
-  RawCluster* cluster = _femcclusters->getCluster(index);
+      RawCluster* cluster = _femcclusters->getCluster(index);
 
-  if (_strict) {assert(cluster);}
-  else if (!cluster) {++_errors; continue;}
+      if (_strict) {assert(cluster);}
+      else if (!cluster) {++_errors; continue;}
 
-  energy += cluster -> get_energy();
-      } else if (source == Jet::FHCAL_TOWER) {
-  RawTower* tower = _fhcaltowers->getTower(index);
+      energy += cluster -> get_energy();
+    } else if (source == Jet::FHCAL_TOWER) {
+      RawTower* tower = _fhcaltowers->getTower(index);
 
-  if (_strict) {assert(tower);}
-  else if (!tower) {++_errors; continue;}
+      if (_strict) {assert(tower);}
+      else if (!tower) {++_errors; continue;}
 
-  energy += tower->get_energy();
-      } else if (source == Jet::FHCAL_CLUSTER) {
+      energy += tower->get_energy();
+    } else if (source == Jet::FHCAL_CLUSTER) {
 
-  RawCluster* cluster = _fhcalclusters->getCluster(index);
+      RawCluster* cluster = _fhcalclusters->getCluster(index);
 
-  if (_strict) {assert(cluster);}
-  else if (!cluster) {++_errors; continue;}
+      if (_strict) {assert(cluster);}
+      else if (!cluster) {++_errors; continue;}
 
-  energy += cluster -> get_energy();
-      } // else if (source == Jet::FHCAL_CLUSTER)
+      energy += cluster -> get_energy();
+    } // else if (source == Jet::FHCAL_CLUSTER)
 
-    } // for (Jet::ConstIter jter = recojet->lower_bound_comp(src);
+  } // for (Jet::ConstIter jter = recojet->lower_bound_comp(src);
 
 
   if (_do_cache) _cache_get_energy_contribution_src.insert(make_pair(make_pair(recojet,src),energy));
